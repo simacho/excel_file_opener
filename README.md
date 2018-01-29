@@ -7,9 +7,11 @@ This provides interactive selection to easily open/change a workbook like a perc
 
 ## Usage
 To start excel_file_opener, 
-      <Ctrl-u> open a workbook in path of current workbook
+```
+<Ctrl-u> open a workbook in path of current workbook
       <Ctrl-r> open a workbook in the list of recently used files
       <Ctrl-b> changing active workbook
+```
 
 ## Installation
 Install ExcelFileOpener.xlam 
