@@ -1,0 +1,26 @@
+VERSION 1.0 CLASS
+BEGIN
+  MultiUse = -1  'True
+END
+Attribute VB_Name = "ThisWorkbook"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+
+' äÑÇËìñÇƒ
+Private Sub Workbook_Open()
+    Application.OnKey "^u", "OpenFile_ACTIVE_PATH"  ' [Ctrl]+[u]
+    Application.OnKey "^r", "OpenFile_RECENT_FILE"  ' [Ctrl]+[r]
+    Application.OnKey "^b", "OpenFile_ACTIVE_BOOK"  ' [Ctrl]+[b]
+End Sub
+ 
+' äÑÇËìñÇƒâèú
+Private Sub Workbook_BeforeClose(Cancel As Boolean)
+    Application.OnKey "^u"   ' [Ctrl]+[u]
+    Application.OnKey "^r"   ' [Ctrl]+[r]
+    Application.OnKey "^b"   ' [Ctrl]+[b]
+    
+    Debug.Print "UnAssign"
+    
+End Sub
