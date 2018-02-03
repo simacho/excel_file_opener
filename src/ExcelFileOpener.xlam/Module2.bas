@@ -6,38 +6,10 @@ Option Explicit
 ' ------------------------------------------------------------
 
 ' ------------------------------------------------------------
-'  INIファイル関連(制作中)
-' ------------------------------------------------------------
-'Private Declare Function GetPrivateProfileString Lib "kernel32" Alias "GetPrivateProfileStringA" (ByVal lpApplicationName As String, ByVal lpKeyName As Any, ByVal lpDefault As String, ByVal lpReturnedString As String, ByVal nSize As Long, ByVal lpFileName As String) As Long
-'Private Declare Function GetPrivateProfileInt Lib "kernel32" Alias "GetPrivateProfileIntA" (ByVal lpApplicationName As String, ByVal lpKeyName As String, ByVal nDefault As Long, ByVal lpFileName As String) As Long
-'
-' Iniファイル処理
-'
-'Function GetINIValue(KEY As String, Section As String, ININame As String) As String
-'    Dim Value As String * 255
-'    Call GetPrivateProfileString(Section, KEY, "ERROR", Value, Len(Value), ININame)
-'    GetINIValue = Left$(Value, InStr(1, Value, vbNullChar) - 1)
-'End Function
-'Function LoadIniFile() As String
-'    Dim wScriptHost As Object
-'    Dim mydoc_path As String
-'
-'    Set wScriptHost = CreateObject("WScript.Shell")
-'
-'    mydoc_path = wScriptHost.SpecialFolders("MyDocuments")
-'
-'    LoadIniFile = GetINIValue("PATH", "Initial", mydoc_path & "\ExcelFileOpener.ini")
-'
-'End Function
-
-
-' ------------------------------------------------------------
 '  キー入力関連
 ' ------------------------------------------------------------
 '
 ' コマンドキー判別
-
-
 Public Function KeyCheck(ByVal KeyCode As MSForms.ReturnInteger, ByVal Shift As Integer)
 
     ' 決定
@@ -50,8 +22,6 @@ Public Function KeyCheck(ByVal KeyCode As MSForms.ReturnInteger, ByVal Shift As 
     End If
 
 End Function
-
-
 
 
 ' ------------------------------------------------------------
@@ -131,7 +101,7 @@ End Function
 '
 Function GetFolderFiles(path As String, files() As String) As String()
     Dim fso As FileSystemObject
-    Dim fold As Folder
+    Dim fold As folder
     Dim file As Object
     Dim cnt As Integer
     
@@ -161,7 +131,7 @@ Function GetFolderFiles(path As String, files() As String) As String()
     ' サブフォルダの名前を取得
     For Each file In fold.SubFolders
         ReDim Preserve files(cnt)
-        files(cnt) = file.Name
+        files(cnt) = file.name
         ' Debug.Print path & "\ SUBDIR -> " & files(cnt)
         
         cnt = cnt + 1
@@ -170,7 +140,7 @@ Function GetFolderFiles(path As String, files() As String) As String()
     ' ファイルの名前を取得
     For Each file In fold.files
         ReDim Preserve files(cnt)
-        files(cnt) = file.Name
+        files(cnt) = file.name
         ' Debug.Print path & "\ FILE -> " & files(cnt)
 
         cnt = cnt + 1
@@ -182,6 +152,51 @@ ErrorHandler:
     GetFolderFiles = files
     
 End Function
+
+'
+' ファイルの一覧を再帰的に取得する
+'
+Function GetFilesRecursive(path As String, files() As String, cnt As Long, rcsv As Boolean) As String()
+    
+    Dim fso As FileSystemObject
+    Dim fold As folder
+    Dim file As Object
+    
+    On Error GoTo ErrorHandler
+            
+    ' ファイルシステム取得
+    Set fso = New FileSystemObject
+    Set fold = fso.GetFolder(path)
+ 
+    ' ファイルの名前を取得
+    For Each file In fold.files
+        ReDim Preserve files(cnt)
+        files(cnt) = Combine(path, file.name)
+       ' Debug.Print "Recursive " & files(cnt)
+        cnt = cnt + 1
+    Next file
+    
+    If cnt > maxCount Then
+        GoTo ErrorHandler
+    End If
+    
+   ' サブフォルダで呼び出し
+   If rcsv = True Then
+        For Each file In fold.SubFolders
+            files = GetFilesRecursive(file.path, files, cnt, rcsv)
+        Next file
+    End If
+
+
+ErrorHandler:
+    
+    ' 個数を保存
+    amountFile = cnt
+          
+    Set fso = Nothing
+    GetFilesRecursive = files
+End Function
+
 
 
 '
@@ -200,11 +215,18 @@ Function GetWorkBookNames(files() As String) As String()
     ' ブック集合から取得
     For Each wbk In Workbooks
         ReDim Preserve files(cnt)
-        files(cnt) = wbk.Name
+        files(cnt) = wbk.name
         cnt = cnt + 1
     Next wbk
 
+    ' 個数を保存
+    amountFile = cnt
+
+
 ErrorHandler:
+
+    
+
 
     GetWorkBookNames = files
 End Function
@@ -217,21 +239,26 @@ Function GetRecentlyFiles(files() As String) As String()
     Dim FileCount As Long
     Dim i As Long
     Dim cnt As Integer
-        
+    
     ReDim files(0)
     cnt = 0
         
-    FileCount = Application.RecentFiles.Count
+    FileCount = Application.RecentFiles.count
     
     If FileCount > 1 Then
     
         For i = 1 To FileCount
             ReDim Preserve files(cnt)
+          
+            files(cnt) = Application.RecentFiles(i).path
             
-            files(cnt) = Application.RecentFiles(i).Name
             cnt = cnt + 1
         Next i
     End If
+
+    ' 個数を保存
+    amountFile = cnt
+    
 
     GetRecentlyFiles = files
     
@@ -281,29 +308,60 @@ Function MatchCheck(str As String, chkstr As String) As Boolean
 End Function
 
 
+'
+' マッチ関数 その2 (!が先頭行に来ていたら失敗にする)
+'
+Function MatchCheck2(str As String, chkstr As String) As Boolean
+    Dim spells As Variant
+    Dim spell As String
+    Dim i As Long
+    Dim ignore As Boolean
+    
+    spells = Split(chkstr, " ")
+    
+    For i = 0 To UBound(spells)
+        spell = "*" & spells(i) & "*"
+
+        ignore = False
+        If InStr(spell, "!") > 0 Then
+            ' !で排除フラグ判定
+            ignore = True
+            spell = Replace(spell, "!", "")
+        
+            If StrConv(UCase(str), vbNarrow) Like StrConv(UCase(spell), vbNarrow) Then
+                MatchCheck2 = False
+                Exit Function
+            End If
+        Else
+            If Not StrConv(UCase(str), vbNarrow) Like StrConv(UCase(spell), vbNarrow) Then
+                MatchCheck2 = False
+                Exit Function
+            End If
+        End If
+    Next i
+    
+    MatchCheck2 = True
+End Function
+
 
 '
 ' モード別に候補を取得する
 '
 Function GetFilesByMode(files() As String, mno As Integer, path As String)
 
+    ' 配列を初期化
+    ReDim files(0)
+
     'モード別に開く処理を変更する
     Select Case noMode
-    Case mode.ACTIVE_PATH       ' ACTIVE_PATH
-        If path = "" Then
-            files = GetDriveLetters(files)
-        Else
-            files = GetFolderFiles(path, files)
-            If UBound(files) = 0 Then
-                path = ""
-                nodirFlag = True
-            End If
-        End If
-    Case mode.ACTIVE_BOOK    ' ACTIVE_BOOK
-        files = GetWorkBookNames(files)
-    
-    Case mode.RECENT_FILE    ' ACTIVE_BOOK
+    Case mode.ACTIVE_PATH
+        files = GetFilesRecursive(path, files, 0, False)
+    Case mode.RECURSIVE_PATH
+        files = GetFilesRecursive(path, files, 0, True)
+    Case mode.RECENT_FILE
         files = GetRecentlyFiles(files)
+    Case mode.SWITCH_BOOK    ' SWITCH_BOOK
+        files = GetWorkBookNames(files)
     End Select
 
     GetFilesByMode = files

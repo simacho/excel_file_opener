@@ -1,10 +1,10 @@
 VERSION 5.00
 Begin {C62A69F0-16DC-11CE-9E98-00AA00574A4F} UserForm2 
    Caption         =   "ExcelFileOpener"
-   ClientHeight    =   6210
+   ClientHeight    =   6525
    ClientLeft      =   120
    ClientTop       =   465
-   ClientWidth     =   9915
+   ClientWidth     =   11040
    OleObjectBlob   =   "UserForm2.frx":0000
    StartUpPosition =   1  'オーナー フォームの中央
 End
@@ -14,6 +14,17 @@ Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = False
 Option Explicit
+
+
+'Windows API宣言
+Private Const GWL_STYLE = (-16)
+Private Const WS_THICKFRAME = &H40000
+Private Declare Function GetWindowLong Lib "user32" Alias "GetWindowLongA" (ByVal hwnd As Long, ByVal nIndex As Long) As Long
+Private Declare Function SetWindowLong Lib "user32" Alias "SetWindowLongA" (ByVal hwnd As Long, ByVal nIndex As Long, ByVal dwNewLong As Long) As Long
+Private Declare Function GetActiveWindow Lib "user32" () As Long
+Private Declare Function DrawMenuBar Lib "user32" (ByVal hwnd As Long) As Long
+
+
 
 Private Sub UnitKeyDownReturn()
     If nodeCount = 0 Then
@@ -27,6 +38,11 @@ Private Sub UnitKeyDownReturn()
 
 End Sub
 
+
+
+Private Sub LabelCounter_Click()
+
+End Sub
 
 Private Sub ListView1_DblClick()
     Call ListView1_KeyDown(vbKeyReturn, 0)
@@ -50,6 +66,9 @@ End Sub
 '
 Private Sub OptionButton1_Click()
     noMode = mode.ACTIVE_PATH
+    
+    TextBoxDirbox.ForeColor = &H80000012        ' パスは濃く
+    
     filesBuffer = GetFilesByMode(filesBuffer, noMode, crntPath)
     
     TextBox2.Text = ""
@@ -64,6 +83,10 @@ Private Sub OptionButton1_KeyDown(ByVal KeyCode As MSForms.ReturnInteger, ByVal 
     End If
 End Sub
 
+Private Sub OptionButton2_KeyDown(ByVal KeyCode As MSForms.ReturnInteger, ByVal Shift As Integer)
+    Call OptionButton1_KeyDown(KeyCode, Shift)
+End Sub
+
 Private Sub OptionButton3_KeyDown(ByVal KeyCode As MSForms.ReturnInteger, ByVal Shift As Integer)
     Call OptionButton1_KeyDown(KeyCode, Shift)
 End Sub
@@ -72,19 +95,40 @@ Private Sub OptionButton4_KeyDown(ByVal KeyCode As MSForms.ReturnInteger, ByVal 
     Call OptionButton1_KeyDown(KeyCode, Shift)
 End Sub
 
+Private Sub OptionButton2_Click()
+    
+    noMode = mode.RECURSIVE_PATH
+    
+    TextBoxDirbox.ForeColor = &H80000012        ' パスは濃く
+        
+    filesBuffer = GetFilesByMode(filesBuffer, noMode, crntPath)
+    Call TextBox2_Change    ' 内容更新
+End Sub
 
 Private Sub OptionButton3_Click()
     noMode = mode.RECENT_FILE
+    
+    TextBoxDirbox.ForeColor = &H80000010        ' パスは薄く
     
     filesBuffer = GetFilesByMode(filesBuffer, noMode, crntPath)
     Call TextBox2_Change    ' 内容更新
 End Sub
 
 Private Sub OptionButton4_Click()
-    noMode = mode.ACTIVE_BOOK
+    noMode = mode.SWITCH_BOOK
+    
+    TextBoxDirbox.ForeColor = &H80000010        ' パスは薄く
     
     filesBuffer = GetFilesByMode(filesBuffer, noMode, crntPath)
     Call TextBox2_Change    ' 内容更新
+End Sub
+
+Private Sub OptionButton5_Click()
+
+End Sub
+
+Private Sub TextBox1_Change()
+
 End Sub
 
 '
@@ -105,40 +149,27 @@ Public Sub TextBox2_Change()
     ' リストのクリア
     UserForm2.ListView1.ListItems.Clear
     
-    Label3.Caption = crntPath
+    TextBoxDirbox.Text = crntPath
 
     matchstr = "*" & UserForm2.TextBox2.Value & "*"
                     
     cnt = 0
-    
-    ' ファイル群
+        
     For Each buf In files()
-            
-        If MatchCheck(CStr(buf), UserForm2.TextBox2.Value) Then
+        If MatchCheck2(CStr(buf), UserForm2.TextBox2.Value) Then
             Dim fpath As String
             Dim itmWork As ListItem
     
             Set itmWork = ListView1.ListItems.Add   '行追加、同時にListItemオブジェクト変数に代入
     
-            Select Case noMode
-            Case mode.ACTIVE_PATH
-                ' アクティブパスは単一語を登録、フォルダの場合は（青）に変更
-                itmWork.Text = buf
-                fpath = Combine(crntPath, buf)
-                If ArgumentTypeCheck(fpath) = 0 Then
-                    itmWork.ForeColor = vbBlue
-                Else
-                    itmWork.ForeColor = vbBlack
-                End If
-        
-            Case mode.RECENT_FILE
-                ' 履歴検索はファイル名とフォルダ名を分けて表示
-                itmWork.Text = fso.GetFileName(buf)
-                itmWork.SubItems(1) = fso.GetParentFolderName(buf)
-            Case mode.ACTIVE_BOOK
+            If noMode = mode.SWITCH_BOOK Then
                 ' 開いているブックの検索はそのまま登録
                 itmWork.Text = buf
-            End Select
+            Else
+                ' 履歴検索(ファイル)はファイル名とフォルダ名を分けて表示
+                itmWork.Text = fso.GetFileName(buf)
+                itmWork.SubItems(1) = fso.GetParentFolderName(buf)
+            End If
         
             ' リソース開放
             Set itmWork = Nothing
@@ -149,6 +180,13 @@ Public Sub TextBox2_Change()
         End If
     
     Next buf
+
+    '個数を表示しておく
+    If amountFile > maxCount Then
+        UserForm2.LabelCounter.Caption = CStr(cnt) & "/" & CStr(amountFile) & " more are omitted!!!"
+    Else
+        UserForm2.LabelCounter.Caption = CStr(cnt) & "/" & CStr(amountFile) & " matched"
+    End If
 
     '変更時は先頭行を選択状態に変更
     nodeCount = cnt
@@ -177,9 +215,28 @@ Private Sub TextBox2_KeyDown(ByVal KeyCode As MSForms.ReturnInteger, ByVal Shift
 End Sub
 
 
+'
+' パスの変更確認
+'
+Private Sub TextBoxDirbox_KeyDown(ByVal KeyCode As MSForms.ReturnInteger, ByVal Shift As Integer)
+
+    If KeyCode = vbKeyReturn Then
+        crntPath = TextBoxDirbox.Text       ' テキストボックスでカレントパスを上書き
+        selectedName = ""
+        waitFlag = False
+    End If
+    
+    If KeyCode = vbKeyEscape Then
+        escFlag = True
+        waitFlag = False
+    End If
+
+End Sub
+
 Private Sub UserForm_Activate()
     
     Me.TextBox2.SetFocus
+    Call FormSetting
 
 End Sub
 
@@ -193,9 +250,23 @@ Private Sub UserForm_QueryClose(Cancel As Integer, CloseMode As Integer) 'Formが
 End Sub
 
 
+
+' フォームをリサイズ可能にするための設定
+Public Sub FormSetting()
+    Dim result As Long
+    Dim hwnd As Long
+    Dim Wnd_STYLE As Long
+ 
+    hwnd = GetActiveWindow()
+    Wnd_STYLE = GetWindowLong(hwnd, GWL_STYLE)
+    Wnd_STYLE = Wnd_STYLE Or WS_THICKFRAME Or &H30000
+ 
+    result = SetWindowLong(hwnd, GWL_STYLE, Wnd_STYLE)
+    result = DrawMenuBar(hwnd)
+End Sub
+
 Private Sub UserForm_Initialize()
  With ListView1
-    
     .AllowColumnReorder = True
     .BorderStyle = ccFixedSingle
     .OLEDragMode = ccOLEDragAutomatic
@@ -205,12 +276,82 @@ Private Sub UserForm_Initialize()
     .View = lvwReport
         
     'ビューの先頭列の表示
-    .ColumnHeaders.Add 1, "F", "File", 250
-    .ColumnHeaders.Add 2, "D", "Appendix", 400
- 
+    .ColumnHeaders.Add 1, "F", "File", iniWidth / 2
+    .ColumnHeaders.Add 2, "D", "Appendix", iniWidth / 2
  End With
 
- 
- 
+ ' ユーザーサイズ変更
+ Me.Width = iniWidth
+ Me.Height = iniHeight
+
+ ' サイズ変更
+ Call UserForm_Resize
+
 End Sub
 
+
+'
+' ウィンドウサイズ整理
+'
+Private Sub UserForm_Resize()
+    Dim mgn As Long
+    Dim xx As Variant
+    Dim yy As Variant
+    
+    xx = Array(8, 38, 16)
+    yy = Array(12, 36, 60, 30, 12)
+    
+    'wdWidth = Me.Width
+    'wdHeight = Me.Height
+    
+    ' x0 左合わせ
+    Label2.Left = xx(0)
+    Label4.Left = xx(0)
+    Label6.Left = xx(0)
+    
+    ' x1 左合わせ
+    TextBoxDirbox.Left = xx(1)
+    TextBox2.Left = xx(1)
+    ListView1.Left = xx(1)
+        
+    OptionButton1.Left = xx(1)
+    OptionButton2.Left = xx(1) + 100
+    OptionButton3.Left = xx(1) + 200
+    OptionButton4.Left = xx(1) + 300
+        
+    ' x2 右合わせ
+    If Me.InsideWidth > 200 Then
+        TextBoxDirbox.Width = Me.InsideWidth - xx(1) - xx(2)
+        TextBox2.Width = Me.InsideWidth - xx(1) - xx(2)
+        ListView1.Width = Me.InsideWidth - xx(1) - xx(2)
+        ListView1.ColumnHeaders.Item(1).Width = ListView1.Width / 2
+        ListView1.ColumnHeaders.Item(2).Width = ListView1.Width / 2
+        
+        LabelCounter.Width = 200
+        LabelCounter.Left = Me.InsideWidth - xx(2) - LabelCounter.Width
+        
+    End If
+        
+    ' y0 上合わせ
+    Label4.Top = yy(0)
+    TextBoxDirbox.Top = yy(0)
+    ' y1 上合わせ
+    Label2.Top = yy(1)
+    TextBox2.Top = yy(1)
+    ' y2 上合わせ
+    Label6.Top = yy(2)
+    ListView1.Top = yy(2)
+    
+    ' y3 下合わせ
+    If Me.InsideHeight > 200 Then
+        ListView1.Height = Me.InsideHeight - yy(2) - yy(3)
+    
+        OptionButton1.Top = Me.InsideHeight - yy(3)
+        OptionButton2.Top = Me.InsideHeight - yy(3)
+        OptionButton3.Top = Me.InsideHeight - yy(3)
+        OptionButton4.Top = Me.InsideHeight - yy(3)
+        LabelCounter.Top = Me.InsideHeight - yy(3)
+    End If
+
+
+End Sub

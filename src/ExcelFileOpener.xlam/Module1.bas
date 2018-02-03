@@ -3,39 +3,101 @@ Option Explicit
 ' ------------------------------------------------------------
 '  変数定義
 ' ------------------------------------------------------------
-Public userPath As String           ' アクティブパス管理用
+Public activePath As String         ' アクティブパス管理用
 Public crntPath As String           ' 現在のパス管理用
 Public selectedName As String       ' 選択項目名受け渡し用
 Public nodeCount As Long            ' 項目数
 Public noMode As Integer            ' モード管理
 Public filesBuffer() As String      ' リスト表示バッファ
+Public maxCount As Long             ' 再帰時のファイル上限
+Public amountFile As Long
+
 
 ' フラグ系
 Public waitFlag As Boolean
 Public escFlag As Boolean
-Public nodirFlag As Boolean
+
+' INIファイル用
+Public iniWidth As Long
+Public iniHeight As Long
 
 ' ------------------------------------------------------------
 '  定数定義
 ' ------------------------------------------------------------
 Enum mode
     ACTIVE_PATH = 1
-    RECENT_FILE = 2
-    ACTIVE_BOOK = 3
+    RECURSIVE_PATH = 2
+    RECENT_FILE = 3
+    SWITCH_BOOK = 4
 End Enum
+
+' ------------------------------------------------------------
+'  INIファイル関連
+' ------------------------------------------------------------
+Private Declare Function GetPrivateProfileString Lib "kernel32" Alias "GetPrivateProfileStringA" (ByVal lpApplicationName As String, ByVal lpKeyName As Any, ByVal lpDefault As String, ByVal lpReturnedString As String, ByVal nSize As Long, ByVal lpFileName As String) As Long
+Private Declare Function GetPrivateProfileInt Lib "kernel32" Alias "GetPrivateProfileIntA" (ByVal lpApplicationName As String, ByVal lpKeyName As String, ByVal nDefault As Long, ByVal lpFileName As String) As Long
+
 
 ' ------------------------------------------------------------
 '  初期化
 ' ------------------------------------------------------------
 Private Sub InitGlobal()
-    userPath = ""
-    crntPath = ""
+    Dim wScriptHost As Object
+    Set wScriptHost = CreateObject("WScript.Shell")
+    
+    activePath = ActiveWorkbook.path
+    crntPath = activePath
     selectedName = ""
     nodeCount = 0
+    amountFile = 0
     noMode = mode.ACTIVE_PATH
     escFlag = False
-    nodirFlag = False
     waitFlag = False
+    
+    ' 初期値
+    iniWidth = 500
+    iniHeight = 300
+    maxCount = 1200
+    
+End Sub
+
+'
+' Iniファイル処理
+'
+Function GetINIValue(KEY As String, Section As String, ININame As String) As String
+    Dim Value As String * 255
+    Call GetPrivateProfileString(Section, KEY, "ERROR", Value, Len(Value), ININame)
+    GetINIValue = Left$(Value, InStr(1, Value, vbNullChar) - 1)
+End Function
+
+Private Sub LoadIniFile()
+    Dim wScriptHost As Object
+    Dim mydoc_path As String
+    Dim strWidth As String
+    Dim strHeight As String
+    Dim strMaxFile As String
+
+    Set wScriptHost = CreateObject("WScript.Shell")
+    mydoc_path = wScriptHost.SpecialFolders("MyDocuments")
+
+    strWidth = GetINIValue("WIDTH", "Initial", mydoc_path & "\ExcelFileOpener.ini")
+    strHeight = GetINIValue("HEIGHT", "Initial", mydoc_path & "\ExcelFileOpener.ini")
+
+    If Not strWidth = "" Then
+        iniWidth = Val(strWidth)
+    End If
+
+    If Not strHeight = "" Then
+        iniHeight = Val(strHeight)
+    End If
+
+    'strMaxFile = GetINIValue("MAXFILE", "Initial", mydoc_path & "\ExcelFileOpener.ini")
+    'If Not strMaxFile = "" Then
+    '    maxCount = Val(strMaxFile)
+    'End If
+
+
+
 End Sub
 
 '---------------------------------------------------------------------------------------------------
@@ -43,7 +105,7 @@ End Sub
 '
 ' パス上のファイルを選択する
 '
-Private Function SelectFile(path As String) As String
+Private Function SelectFile() As String
 
     Dim ret As Boolean
     Dim tgtfile As String
@@ -55,12 +117,9 @@ Private Function SelectFile(path As String) As String
     form = False
     
     Do
-        ' 受け渡し用パスにもセット
-        crntPath = path
-        
         ' 候補を取得する
         filesBuffer = GetFilesByMode(filesBuffer, noMode, crntPath)
-            
+        
         ' フォーム表示前更新
         Call UserForm2.TextBox2_Change
         UserForm2.TextBox2.Text = ""
@@ -87,51 +146,15 @@ Private Function SelectFile(path As String) As String
             SelectFile = ""
             GoTo LastExit
         End If
-        
-        ' フォルダ無し例外対応
-        If nodirFlag = True Then
-            path = ""
-            nodirFlag = False
-            GoTo Continue
-        End If
-                        
+
         ' 指定物が見つからない場合は繰り返し
         If selectedName = "" Then
             GoTo Continue
         End If
                  
-        tgtfile = ""
-                
-        Select Case noMode
-        Case mode.ACTIVE_PATH
-            tgtfile = path & "\" & selectedName
-                        
-            If path = "" Then
-                'トップディレクトリにいる場合
-                path = selectedName
-            Else
-                'フォルダが存在している場合
-                tgtfile = path & "\" & selectedName
-                ' フォルダ遷移
-                If selectedName = ".." Then
-                ' 選択した物が..だった場合には親のフォルダに行く
-                    path = GetParentFolder(path)
-                ElseIf ArgumentTypeCheck(tgtfile) = 0 Then
-                    path = tgtfile
-                Else
-                    'ファイル指定であった場合
-                    ret = True
-                End If
-            End If
-                                
-        Case mode.RECENT_FILE
-            tgtfile = selectedName
-            ret = True
-        Case mode.ACTIVE_BOOK
-            tgtfile = selectedName
-            ret = True
-        End Select
-                        
+        ' 終了
+        tgtfile = selectedName
+        ret = True
 
 Continue:
     Loop While ret = False
@@ -161,9 +184,11 @@ Private Sub OpenFileSub(tgtfile As String)
     Select Case noMode
     Case mode.ACTIVE_PATH
         act_open = True
+    Case mode.RECURSIVE_PATH
+        act_open = True
     Case mode.RECENT_FILE
         act_open = True
-    Case mode.ACTIVE_BOOK
+    Case mode.SWITCH_BOOK
         act_open = False
     End Select
     
@@ -194,31 +219,36 @@ End Sub
 Private Sub OpenFile0(mno As Integer)
     
     Dim tgtfile As String
-      
+              
     ' グローバル変数の初期化
     Call InitGlobal
     
+    ' INIファイルの読み込み
+    Call LoadIniFile
+
     ' モード指定
     noMode = mno
-    
-    If Not ActiveWorkbook Is Nothing Then
-        userPath = ActiveWorkbook.path
-    End If
-        
+            
     'モード別処理
     Select Case noMode
     Case mode.ACTIVE_PATH
         UserForm2.OptionButton1 = True
+    
+    Case mode.RECURSIVE_PATH
+        UserForm2.OptionButton2 = True
+    
     Case mode.RECENT_FILE
         UserForm2.OptionButton3 = True
-    Case mode.ACTIVE_BOOK
+    
+    Case mode.SWITCH_BOOK
         UserForm2.OptionButton4 = True
+        
     End Select
         
     'Debug.Print "Initial UserPath " & userPath
     
     '選択処理
-    tgtfile = SelectFile(userPath)
+    tgtfile = SelectFile()
         
     If escFlag = True Then
         Exit Sub
@@ -242,6 +272,13 @@ Public Sub OpenFile_ACTIVE_PATH()
 End Sub
 
 '
+' 公開関数（現在のフォルダから再帰的に開く）
+'
+Public Sub OpenFile_RECURSIVE_PATH()
+    Call OpenFile0(mode.RECURSIVE_PATH)
+End Sub
+
+'
 ' 公開関数（履歴ファイルを選択して開く）
 '
 Public Sub OpenFile_RECENT_FILE()
@@ -251,11 +288,7 @@ End Sub
 '
 ' 公開関数（履歴ファイルを選択して開く）
 '
-Public Sub OpenFile_ACTIVE_BOOK()
-    Call OpenFile0(mode.ACTIVE_BOOK)
+Public Sub OpenFile_SWITCH_BOOK()
+    Call OpenFile0(mode.SWITCH_BOOK)
 End Sub
-
-
-
-
 

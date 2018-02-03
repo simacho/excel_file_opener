@@ -10,17 +10,16 @@ Attribute VB_Exposed = True
 
 ' äÑÇËìñÇƒ
 Private Sub Workbook_Open()
-    Application.OnKey "^u", "OpenFile_ACTIVE_PATH"  ' [Ctrl]+[u]
-    Application.OnKey "^r", "OpenFile_RECENT_FILE"  ' [Ctrl]+[r]
-    Application.OnKey "^b", "OpenFile_ACTIVE_BOOK"  ' [Ctrl]+[b]
+    Application.OnKey "^A", "OpenFile_ACTIVE_PATH"  ' [Ctrl]+[A]
+    Application.OnKey "^R", "OpenFile_RECURSIVE_PATH"  ' [Ctrl]+[R]
+    Application.OnKey "^M", "OpenFile_RECENT_FILE"  ' [Ctrl]+[M]
+    Application.OnKey "^S", "OpenFile_SWITCH_BOOK"  ' [Ctrl]+[S]
 End Sub
  
 ' äÑÇËìñÇƒâèú
 Private Sub Workbook_BeforeClose(Cancel As Boolean)
-    Application.OnKey "^u"   ' [Ctrl]+[u]
-    Application.OnKey "^r"   ' [Ctrl]+[r]
-    Application.OnKey "^b"   ' [Ctrl]+[b]
-    
-    Debug.Print "UnAssign"
-    
+    Application.OnKey "^A"   ' [Ctrl]+[A]
+    Application.OnKey "^R"   ' [Ctrl]+[R]
+    Application.OnKey "^M"   ' [Ctrl]+[M]
+    Application.OnKey "^S"   ' [Ctrl]+[S]
 End Sub
