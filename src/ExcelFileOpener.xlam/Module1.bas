@@ -57,7 +57,7 @@ Private Sub InitGlobal()
     ' 初期値
     iniWidth = 500
     iniHeight = 300
-    maxCount = 1200
+    maxCount = 10000
     
 End Sub
 
@@ -95,9 +95,7 @@ Private Sub LoadIniFile()
     'If Not strMaxFile = "" Then
     '    maxCount = Val(strMaxFile)
     'End If
-
-
-
+    
 End Sub
 
 '---------------------------------------------------------------------------------------------------
@@ -178,7 +176,7 @@ Private Sub OpenFileSub(tgtfile As String)
     Dim books() As String
     act_open = True
     
-    ' Debug.Print "Open " & tgtfile
+    Debug.Print "Open " & tgtfile & " mo"
     
     'モード別に開く処理を変更する
     Select Case noMode

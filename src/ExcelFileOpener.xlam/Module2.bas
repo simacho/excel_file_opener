@@ -161,6 +161,7 @@ Function GetFilesRecursive(path As String, files() As String, cnt As Long, rcsv 
     Dim fso As FileSystemObject
     Dim fold As folder
     Dim file As Object
+    Dim dummy As Variant
     
     On Error GoTo ErrorHandler
             
@@ -176,6 +177,12 @@ Function GetFilesRecursive(path As String, files() As String, cnt As Long, rcsv 
         cnt = cnt + 1
     Next file
     
+    '
+    ' ŽžŠÔ‘Ò‚¿
+    '
+    UserForm2.LabelCounter.Caption = "Scanning " & cnt
+    dummy = DoEvents
+
     If cnt > maxCount Then
         GoTo ErrorHandler
     End If

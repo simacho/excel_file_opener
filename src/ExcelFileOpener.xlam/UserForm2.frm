@@ -30,8 +30,9 @@ Private Sub UnitKeyDownReturn()
     If nodeCount = 0 Then
         selectedName = ""
     Else
-        selectedName = ListView1.SelectedItem.Text
-        If noMode = mode.RECENT_FILE Then
+        If noMode = mode.SWITCH_BOOK Then
+            selectedName = ListView1.SelectedItem.Text
+        Else
             selectedName = Combine(ListView1.SelectedItem.SubItems(1), ListView1.SelectedItem.Text)
         End If
     End If
@@ -67,11 +68,12 @@ End Sub
 Private Sub OptionButton1_Click()
     noMode = mode.ACTIVE_PATH
     
+    TextBox2.Text = ""
+    selectedName = ""
+    
     TextBoxDirbox.ForeColor = &H80000012        ' パスは濃く
     
     filesBuffer = GetFilesByMode(filesBuffer, noMode, crntPath)
-    
-    TextBox2.Text = ""
     
     Call TextBox2_Change    ' 内容更新
 End Sub
@@ -99,6 +101,8 @@ Private Sub OptionButton2_Click()
     
     noMode = mode.RECURSIVE_PATH
     
+    TextBox2.Text = ""
+    selectedName = ""
     TextBoxDirbox.ForeColor = &H80000012        ' パスは濃く
         
     filesBuffer = GetFilesByMode(filesBuffer, noMode, crntPath)
@@ -108,6 +112,8 @@ End Sub
 Private Sub OptionButton3_Click()
     noMode = mode.RECENT_FILE
     
+    TextBox2.Text = ""
+    selectedName = ""
     TextBoxDirbox.ForeColor = &H80000010        ' パスは薄く
     
     filesBuffer = GetFilesByMode(filesBuffer, noMode, crntPath)
@@ -117,6 +123,8 @@ End Sub
 Private Sub OptionButton4_Click()
     noMode = mode.SWITCH_BOOK
     
+    TextBox2.Text = ""
+    selectedName = ""
     TextBoxDirbox.ForeColor = &H80000010        ' パスは薄く
     
     filesBuffer = GetFilesByMode(filesBuffer, noMode, crntPath)
@@ -214,6 +222,16 @@ Private Sub TextBox2_KeyDown(ByVal KeyCode As MSForms.ReturnInteger, ByVal Shift
         
 End Sub
 
+'
+' ダブルクリックでフォルダ選択
+'
+Private Sub TextBoxDirbox_DblClick(ByVal Cancel As MSForms.ReturnBoolean)
+    With Application.FileDialog(msoFileDialogFolderPicker)
+        If .Show = True Then
+            TextBoxDirbox.Text = .SelectedItems(1)
+        End If
+    End With
+End Sub
 
 '
 ' パスの変更確認
