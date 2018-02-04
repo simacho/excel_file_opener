@@ -30,11 +30,17 @@ Private Sub UnitKeyDownReturn()
     If nodeCount = 0 Then
         selectedName = ""
     Else
-        If noMode = mode.SWITCH_BOOK Then
-            selectedName = ListView1.SelectedItem.Text
-        Else
+        Select Case noMode
+        Case mode.ACTIVE_PATH
             selectedName = Combine(crntPath, ListView1.SelectedItem.SubItems(1), ListView1.SelectedItem.Text)
-        End If
+        Case mode.RECURSIVE_PATH
+            selectedName = Combine(crntPath, ListView1.SelectedItem.SubItems(1), ListView1.SelectedItem.Text)
+        Case mode.RECENT_FILE
+            selectedName = Combine(ListView1.SelectedItem.SubItems(1), ListView1.SelectedItem.Text)
+        Case mode.SWITCH_BOOK
+            selectedName = ListView1.SelectedItem.Text
+        End Select
+    
     End If
 
 End Sub
@@ -170,14 +176,13 @@ Public Sub TextBox2_Change()
             Dim itmWork As ListItem
     
             Set itmWork = ListView1.ListItems.Add   '行追加、同時にListItemオブジェクト変数に代入
-    
+                
             If noMode = mode.SWITCH_BOOK Then
                 ' 開いているブックの検索はそのまま登録
                 itmWork.Text = buf
             Else
                 ' 履歴検索(ファイル)はファイル名とフォルダ名を分けて表示
                 itmWork.Text = fso.GetFileName(buf)
-                'itmWork.SubItems(1).Text = fso.GetParentFolderName(Combine(crntPath, "\", buf))
                 itmWork.SubItems(1) = fso.GetParentFolderName(buf)
             End If
         
