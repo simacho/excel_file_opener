@@ -176,7 +176,7 @@ Private Sub OpenFileSub(tgtfile As String)
     Dim books() As String
     act_open = True
     
-    Debug.Print "Open " & tgtfile & " mo"
+    ' Debug.Print "Open " & tgtfile
     
     'モード別に開く処理を変更する
     Select Case noMode

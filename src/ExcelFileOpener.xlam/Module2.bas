@@ -162,6 +162,7 @@ Function GetFilesRecursive(path As String, files() As String, cnt As Long, rcsv 
     Dim fold As folder
     Dim file As Object
     Dim dummy As Variant
+    Dim temp As String
     
     On Error GoTo ErrorHandler
             
@@ -172,8 +173,13 @@ Function GetFilesRecursive(path As String, files() As String, cnt As Long, rcsv 
     ' ファイルの名前を取得
     For Each file In fold.files
         ReDim Preserve files(cnt)
-        files(cnt) = Combine(path, file.name)
-       ' Debug.Print "Recursive " & files(cnt)
+        
+        'files(cnt) = Combine(path, file.name)
+    
+        files(cnt) = Combine(Replace(path, crntPath, ""), file.name)
+        
+        'Debug.Print "Recursive " & Combine(Replace(path, crntPath, ""), file.name)
+        
         cnt = cnt + 1
     Next file
     

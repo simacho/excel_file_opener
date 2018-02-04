@@ -33,7 +33,7 @@ Private Sub UnitKeyDownReturn()
         If noMode = mode.SWITCH_BOOK Then
             selectedName = ListView1.SelectedItem.Text
         Else
-            selectedName = Combine(ListView1.SelectedItem.SubItems(1), ListView1.SelectedItem.Text)
+            selectedName = Combine(crntPath, ListView1.SelectedItem.SubItems(1), ListView1.SelectedItem.Text)
         End If
     End If
 
@@ -150,6 +150,7 @@ Public Sub TextBox2_Change()
     Dim files() As String
     Dim searchstr As String
     Dim fso As New FileSystemObject
+    Dim tempstr As String
     
     ' 候補リストを取得
     files = filesBuffer
@@ -176,6 +177,7 @@ Public Sub TextBox2_Change()
             Else
                 ' 履歴検索(ファイル)はファイル名とフォルダ名を分けて表示
                 itmWork.Text = fso.GetFileName(buf)
+                'itmWork.SubItems(1).Text = fso.GetParentFolderName(Combine(crntPath, "\", buf))
                 itmWork.SubItems(1) = fso.GetParentFolderName(buf)
             End If
         
