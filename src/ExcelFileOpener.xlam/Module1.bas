@@ -5,6 +5,7 @@ Option Explicit
 ' ------------------------------------------------------------
 Public activePath As String         ' アクティブパス管理用
 Public crntPath As String           ' 現在のパス管理用
+Public initialString As String      ' 最初の文字列
 Public selectedName As String       ' 選択項目名受け渡し用
 Public nodeCount As Long            ' 項目数
 Public noMode As Integer            ' モード管理
@@ -16,6 +17,7 @@ Public amountFile As Long
 ' フラグ系
 Public waitFlag As Boolean
 Public escFlag As Boolean
+Public restoreFlag As Boolean
 
 ' INIファイル用
 Public iniWidth As Long
@@ -36,7 +38,7 @@ End Enum
 ' ------------------------------------------------------------
 Private Declare Function GetPrivateProfileString Lib "kernel32" Alias "GetPrivateProfileStringA" (ByVal lpApplicationName As String, ByVal lpKeyName As Any, ByVal lpDefault As String, ByVal lpReturnedString As String, ByVal nSize As Long, ByVal lpFileName As String) As Long
 Private Declare Function GetPrivateProfileInt Lib "kernel32" Alias "GetPrivateProfileIntA" (ByVal lpApplicationName As String, ByVal lpKeyName As String, ByVal nDefault As Long, ByVal lpFileName As String) As Long
-
+Private Declare Function WritePrivateProfileString Lib "kernel32" Alias "WritePrivateProfileStringA" (ByVal lpApplicationName As String, ByVal lpKeyName As Any, ByVal lpString As Any, ByVal lpFileName As String) As Long
 
 ' ------------------------------------------------------------
 '  初期化
@@ -45,14 +47,25 @@ Private Sub InitGlobal()
     Dim wScriptHost As Object
     Set wScriptHost = CreateObject("WScript.Shell")
     
-    activePath = ActiveWorkbook.path
+    
+    activePath = ""
+    If Not ActiveWorkbook Is Nothing Then
+        activePath = ActiveWorkbook.path
+    End If
     crntPath = activePath
+    initialString = ""
     selectedName = ""
     nodeCount = 0
     amountFile = 0
     noMode = mode.ACTIVE_PATH
+    
+    ' ファイルバッファクリア
+    ReDim filesBuffer(0)
+        
+    ' フラグ関連クリア
     escFlag = False
     waitFlag = False
+    restoreFlag = False
     
     ' 初期値
     iniWidth = 500
@@ -62,7 +75,7 @@ Private Sub InitGlobal()
 End Sub
 
 '
-' Iniファイル処理
+' Iniファイル読み込み
 '
 Function GetINIValue(KEY As String, Section As String, ININame As String) As String
     Dim Value As String * 255
@@ -76,30 +89,83 @@ Private Sub LoadIniFile()
     Dim strWidth As String
     Dim strHeight As String
     Dim strMaxFile As String
+    Dim strInitialString As String
+    Dim strSaveENABLE As String
+    Dim strSavePATH As String
 
     Set wScriptHost = CreateObject("WScript.Shell")
     mydoc_path = wScriptHost.SpecialFolders("MyDocuments")
 
+    '初期化関連読み出し
     strWidth = GetINIValue("WIDTH", "Initial", mydoc_path & "\ExcelFileOpener.ini")
     strHeight = GetINIValue("HEIGHT", "Initial", mydoc_path & "\ExcelFileOpener.ini")
+    strMaxFile = GetINIValue("MAX_FILE", "Initial", mydoc_path & "\ExcelFileOpener.ini")
+    strInitialString = GetINIValue("INITIAL_STRING", "Initial", mydoc_path & "\ExcelFileOpener.ini")
 
-    If Not strWidth = "" Then
+    If Not strWidth = "ERROR" Then
         iniWidth = Val(strWidth)
     End If
 
-    If Not strHeight = "" Then
+    If Not strHeight = "ERROR" Then
         iniHeight = Val(strHeight)
     End If
 
-    'strMaxFile = GetINIValue("MAXFILE", "Initial", mydoc_path & "\ExcelFileOpener.ini")
-    'If Not strMaxFile = "" Then
-    '    maxCount = Val(strMaxFile)
-    'End If
+    If Not strMaxFile = "ERROR" Then
+        maxCount = Val(strMaxFile)
+    End If
+    
+    If Not strInitialString = "ERROR" Then
+        initialString = strInitialString
+    End If
+    
+    'セーブ関連復帰
+    strSaveENABLE = GetINIValue("ENABLE", "Save", mydoc_path & "\ExcelFileOpener.ini")
+    strSavePATH = GetINIValue("PATH", "Save", mydoc_path & "\ExcelFileOpener.ini")
+    
+    If Not strSaveENABLE = "ERROR" Then
+        If UCase(strSaveENABLE) = "TRUE" Then
+            restoreFlag = True
+            crntPath = strSavePATH
+        Else
+            restoreFlag = False
+        End If
+    End If
+    
     
 End Sub
 
-'---------------------------------------------------------------------------------------------------
+'
+' Iniファイル書き込み
+'
+Public Function SetINIValue(Value As String, KEY As String, Section As String, ININame As String) As Boolean
 
+    Dim ret As Long
+
+    ret = WritePrivateProfileString(Section, KEY, Value, ININame)
+    SetINIValue = CBool(ret)
+
+End Function
+
+Private Sub SaveIniFile()
+
+    Dim wScriptHost As Object
+    Dim mydoc_path As String
+    Dim ret As Boolean
+
+    Set wScriptHost = CreateObject("WScript.Shell")
+    mydoc_path = wScriptHost.SpecialFolders("MyDocuments")
+
+    If restoreFlag = True Then
+            ret = SetINIValue("True", "ENABLE", "Save", mydoc_path & "\ExcelFileOpener.ini")
+            ret = SetINIValue(crntPath, "PATH", "Save", mydoc_path & "\ExcelFileOpener.ini")
+    Else
+            ret = SetINIValue("False", "ENABLE", "Save", mydoc_path & "\ExcelFileOpener.ini")
+    End If
+
+End Sub
+
+
+'---------------------------------------------------------------------------------------------------
 '
 ' パス上のファイルを選択する
 '
@@ -116,11 +182,23 @@ Private Function SelectFile() As String
     
     Do
         ' 候補を取得する
-        filesBuffer = GetFilesByMode(filesBuffer, noMode, crntPath)
+        Call GetFilesByMode
         
         ' フォーム表示前更新
         Call UserForm2.TextBox2_Change
-        UserForm2.TextBox2.Text = ""
+        
+        'モード別に開く処理を変更する
+        Select Case noMode
+        Case mode.ACTIVE_PATH
+            UserForm2.TextBox2.Text = initialString
+        Case mode.RECURSIVE_PATH
+            UserForm2.TextBox2.Text = initialString
+        Case mode.RECENT_FILE
+            UserForm2.TextBox2.Text = ""
+        Case mode.SWITCH_BOOK
+            UserForm2.TextBox2.Text = ""
+        End Select
+        
         
         waitFlag = True
                 
@@ -249,11 +327,17 @@ Private Sub OpenFile0(mno As Integer)
     tgtfile = SelectFile()
         
     If escFlag = True Then
+        ' 入力パスを保存
+        Call SaveIniFile
         Exit Sub
     End If
     
     'ファイルオープン処理
     Call OpenFileSub(tgtfile)
+    
+    ' 入力パスを保存
+    Call SaveIniFile
+
     
 End Sub
 

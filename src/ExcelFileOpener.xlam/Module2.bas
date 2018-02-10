@@ -8,20 +8,6 @@ Option Explicit
 ' ------------------------------------------------------------
 '  キー入力関連
 ' ------------------------------------------------------------
-'
-' コマンドキー判別
-Public Function KeyCheck(ByVal KeyCode As MSForms.ReturnInteger, ByVal Shift As Integer)
-
-    ' 決定
-    If KeyCode = vbKeyReturn Then
-        selectedName = UserForm2.ListView1.SelectedItem.Text
-    End If
-    
-    If KeyCode = vbKeyEscape Then
-        Unload Me
-    End If
-
-End Function
 
 
 ' ------------------------------------------------------------
@@ -131,7 +117,7 @@ Function GetFolderFiles(path As String, files() As String) As String()
     ' サブフォルダの名前を取得
     For Each file In fold.SubFolders
         ReDim Preserve files(cnt)
-        files(cnt) = file.name
+        files(cnt) = file.Name
         ' Debug.Print path & "\ SUBDIR -> " & files(cnt)
         
         cnt = cnt + 1
@@ -140,7 +126,7 @@ Function GetFolderFiles(path As String, files() As String) As String()
     ' ファイルの名前を取得
     For Each file In fold.files
         ReDim Preserve files(cnt)
-        files(cnt) = file.name
+        files(cnt) = file.Name
         ' Debug.Print path & "\ FILE -> " & files(cnt)
 
         cnt = cnt + 1
@@ -176,7 +162,7 @@ Function GetFilesRecursive(path As String, files() As String, cnt As Long, rcsv 
         
         'files(cnt) = Combine(path, file.name)
     
-        files(cnt) = Combine(Replace(path, crntPath, ""), file.name)
+        files(cnt) = Combine(Replace(path, crntPath, ""), file.Name)
         
         'Debug.Print "Recursive " & Combine(Replace(path, crntPath, ""), file.name)
         
@@ -228,7 +214,7 @@ Function GetWorkBookNames(files() As String) As String()
     ' ブック集合から取得
     For Each wbk In Workbooks
         ReDim Preserve files(cnt)
-        files(cnt) = wbk.name
+        files(cnt) = wbk.Name
         cnt = cnt + 1
     Next wbk
 
@@ -256,7 +242,7 @@ Function GetRecentlyFiles(files() As String) As String()
     ReDim files(0)
     cnt = 0
         
-    FileCount = Application.RecentFiles.count
+    FileCount = Application.RecentFiles.Count
     
     If FileCount > 1 Then
     
@@ -283,19 +269,19 @@ End Function
 Function Combine(ParamArray paths()) As String
     Dim i As Integer
     Dim path As String
-    Dim result As String
+    Dim Result As String
     For i = LBound(paths) To UBound(paths)
         path = CStr(paths(i))
         If i = LBound(paths) Then
-            result = path
+            Result = path
         Else
-            If Right(result, 1) = "\" Then result = Left(result, Len(result) - 1)
+            If Right(Result, 1) = "\" Then Result = Left(Result, Len(Result) - 1)
             If Left(path, 1) = "\" Then path = Mid(path, 2)
-            result = result & "\" & path
+            Result = Result & "\" & path
         End If
     Next
      
-    Combine = result
+    Combine = Result
 End Function
 
 '
@@ -356,29 +342,57 @@ Function MatchCheck2(str As String, chkstr As String) As Boolean
     MatchCheck2 = True
 End Function
 
+'
+' マッチ関数 正規表現版
+
+Function MatchCheckRegExp(str As String, chkstr As String) As Boolean
+    Dim reg             As New RegExp       '// 正規表現クラスオブジェクト
+    Dim oMatches        As MatchCollection  '// RegExp.Execute結果
+    Dim oMatch          As Match            '// 検索結果オブジェクト
+    
+    Dim spells As Variant
+    Dim spell As String
+    Dim i As Long
+    Dim ignore As Boolean
+    
+    
+    '// 検索条件設定
+    reg.Global = True               '// 検索範囲（True：文字列の最後まで検索、False：最初の一致まで検索）
+    reg.IgnoreCase = True           '// 大文字小文字の区別（True：区別しない、False：区別する）
+    reg.Pattern = chkstr            '// 検索パターン（ここでは連続する数字を検索条件に設定）
+
+    '// 検索実行
+    Set oMatches = reg.Execute(str)
+    
+    If oMatches.Count >= 1 Then
+        MatchCheckRegExp = True
+    Else
+        MatchCheckRegExp = False
+    End If
+
+End Function
 
 '
 ' モード別に候補を取得する
 '
-Function GetFilesByMode(files() As String, mno As Integer, path As String)
+Sub GetFilesByMode()
 
     ' 配列を初期化
-    ReDim files(0)
+    ReDim filesBuffer(0)
 
     'モード別に開く処理を変更する
     Select Case noMode
     Case mode.ACTIVE_PATH
-        files = GetFilesRecursive(path, files, 0, False)
+        filesBuffer = GetFilesRecursive(crntPath, filesBuffer, 0, False)
     Case mode.RECURSIVE_PATH
-        files = GetFilesRecursive(path, files, 0, True)
+        filesBuffer = GetFilesRecursive(crntPath, filesBuffer, 0, True)
     Case mode.RECENT_FILE
-        files = GetRecentlyFiles(files)
+        filesBuffer = GetRecentlyFiles(filesBuffer)
     Case mode.SWITCH_BOOK    ' SWITCH_BOOK
-        files = GetWorkBookNames(files)
+        filesBuffer = GetWorkBookNames(filesBuffer)
     End Select
 
-    GetFilesByMode = files
-End Function
+End Sub
 
 
     

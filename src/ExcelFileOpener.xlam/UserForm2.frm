@@ -46,6 +46,15 @@ Private Sub UnitKeyDownReturn()
 End Sub
 
 
+Private Sub CheckBoxRestore_Click()
+    
+    If Not (UserForm2.ActiveControl Is Nothing) Then
+        If UserForm2.ActiveControl.Name = Me.ActiveControl.Name Then
+            restoreFlag = Not restoreFlag
+        End If
+    End If
+    
+End Sub
 
 Private Sub LabelCounter_Click()
 
@@ -74,12 +83,11 @@ End Sub
 Private Sub OptionButton1_Click()
     noMode = mode.ACTIVE_PATH
     
-    TextBox2.Text = ""
+    TextBox2.Text = initialString
     selectedName = ""
     
     TextBoxDirbox.ForeColor = &H80000012        ' パスは濃く
-    
-    filesBuffer = GetFilesByMode(filesBuffer, noMode, crntPath)
+    Call GetFilesByMode
     
     Call TextBox2_Change    ' 内容更新
 End Sub
@@ -107,11 +115,11 @@ Private Sub OptionButton2_Click()
     
     noMode = mode.RECURSIVE_PATH
     
-    TextBox2.Text = ""
+    TextBox2.Text = initialString
     selectedName = ""
     TextBoxDirbox.ForeColor = &H80000012        ' パスは濃く
         
-    filesBuffer = GetFilesByMode(filesBuffer, noMode, crntPath)
+    Call GetFilesByMode
     Call TextBox2_Change    ' 内容更新
 End Sub
 
@@ -122,7 +130,7 @@ Private Sub OptionButton3_Click()
     selectedName = ""
     TextBoxDirbox.ForeColor = &H80000010        ' パスは薄く
     
-    filesBuffer = GetFilesByMode(filesBuffer, noMode, crntPath)
+    Call GetFilesByMode
     Call TextBox2_Change    ' 内容更新
 End Sub
 
@@ -133,7 +141,7 @@ Private Sub OptionButton4_Click()
     selectedName = ""
     TextBoxDirbox.ForeColor = &H80000010        ' パスは薄く
     
-    filesBuffer = GetFilesByMode(filesBuffer, noMode, crntPath)
+    Call GetFilesByMode
     Call TextBox2_Change    ' 内容更新
 End Sub
 
@@ -153,13 +161,14 @@ Public Sub TextBox2_Change()
     Dim cnt As Integer
     Dim matchstr As String
     Dim buf As Variant
-    Dim files() As String
     Dim searchstr As String
     Dim fso As New FileSystemObject
     Dim tempstr As String
-    
-    ' 候補リストを取得
-    files = filesBuffer
+            
+    ' 要素無し時
+    'If UBound(filesBuffer) - LBound(filesBuffer) = 0 Then
+    '    Exit Sub
+    'End If
     
     ' リストのクリア
     UserForm2.ListView1.ListItems.Clear
@@ -169,9 +178,11 @@ Public Sub TextBox2_Change()
     matchstr = "*" & UserForm2.TextBox2.Value & "*"
                     
     cnt = 0
-        
-    For Each buf In files()
+    
+   For Each buf In filesBuffer()
         If MatchCheck2(CStr(buf), UserForm2.TextBox2.Value) Then
+       ' If MatchCheckRegExp(CStr(buf), UserForm2.TextBox2.Value) Then
+            
             Dim fpath As String
             Dim itmWork As ListItem
     
@@ -237,6 +248,12 @@ Private Sub TextBoxDirbox_DblClick(ByVal Cancel As MSForms.ReturnBoolean)
         If .Show = True Then
             TextBoxDirbox.Text = .SelectedItems(1)
         End If
+    
+            crntPath = TextBoxDirbox.Text       ' テキストボックスでカレントパスを上書き
+            selectedName = ""
+            waitFlag = False
+    
+    
     End With
 End Sub
 
@@ -278,7 +295,7 @@ End Sub
 
 ' フォームをリサイズ可能にするための設定
 Public Sub FormSetting()
-    Dim result As Long
+    Dim Result As Long
     Dim hwnd As Long
     Dim Wnd_STYLE As Long
  
@@ -286,8 +303,8 @@ Public Sub FormSetting()
     Wnd_STYLE = GetWindowLong(hwnd, GWL_STYLE)
     Wnd_STYLE = Wnd_STYLE Or WS_THICKFRAME Or &H30000
  
-    result = SetWindowLong(hwnd, GWL_STYLE, Wnd_STYLE)
-    result = DrawMenuBar(hwnd)
+    Result = SetWindowLong(hwnd, GWL_STYLE, Wnd_STYLE)
+    Result = DrawMenuBar(hwnd)
 End Sub
 
 Private Sub UserForm_Initialize()
@@ -308,6 +325,9 @@ Private Sub UserForm_Initialize()
  ' ユーザーサイズ変更
  Me.Width = iniWidth
  Me.Height = iniHeight
+ 
+ ' 保存フラグ変更
+ Me.CheckBoxRestore.Value = restoreFlag
 
  ' サイズ変更
  Call UserForm_Resize
@@ -346,7 +366,11 @@ Private Sub UserForm_Resize()
         
     ' x2 右合わせ
     If Me.InsideWidth > 200 Then
-        TextBoxDirbox.Width = Me.InsideWidth - xx(1) - xx(2)
+           
+        CheckBoxRestore.Width = 50
+        CheckBoxRestore.Left = Me.InsideWidth - xx(2) - CheckBoxRestore.Width
+        
+        TextBoxDirbox.Width = Me.InsideWidth - xx(1) - xx(2) - CheckBoxRestore.Width
         TextBox2.Width = Me.InsideWidth - xx(1) - xx(2)
         ListView1.Width = Me.InsideWidth - xx(1) - xx(2)
         ListView1.ColumnHeaders.Item(1).Width = ListView1.Width / 2
@@ -360,6 +384,7 @@ Private Sub UserForm_Resize()
     ' y0 上合わせ
     Label4.Top = yy(0)
     TextBoxDirbox.Top = yy(0)
+    CheckBoxRestore.Top = yy(0)
     ' y1 上合わせ
     Label2.Top = yy(1)
     TextBox2.Top = yy(1)
