@@ -12,7 +12,7 @@ Public noMode As Integer            ' モード管理
 Public filesBuffer() As String      ' リスト表示バッファ
 Public maxCount As Long             ' 再帰時のファイル上限
 Public amountFile As Long
-
+Public pathDic As New Dictionary         ' パス保存用
 
 ' フラグ系
 Public waitFlag As Boolean
@@ -61,6 +61,9 @@ Private Sub InitGlobal()
     
     ' ファイルバッファクリア
     ReDim filesBuffer(0)
+    
+    ' Path用の辞書
+    Set pathDic = CreateObject("Scripting.Dictionary")
         
     ' フラグ関連クリア
     escFlag = False
@@ -74,11 +77,17 @@ Private Sub InitGlobal()
     
 End Sub
 
+
+Private Sub ExitGlobal()
+    Set pathDic = Nothing
+End Sub
+
+
 '
 ' Iniファイル読み込み
 '
 Function GetINIValue(KEY As String, Section As String, ININame As String) As String
-    Dim Value As String * 255
+    Dim Value As String * 8192
     Call GetPrivateProfileString(Section, KEY, "ERROR", Value, Len(Value), ININame)
     GetINIValue = Left$(Value, InStr(1, Value, vbNullChar) - 1)
 End Function
@@ -92,6 +101,7 @@ Private Sub LoadIniFile()
     Dim strInitialString As String
     Dim strSaveENABLE As String
     Dim strSavePATH As String
+    Dim strSavePATHLIST As String
 
     Set wScriptHost = CreateObject("WScript.Shell")
     mydoc_path = wScriptHost.SpecialFolders("MyDocuments")
@@ -131,6 +141,22 @@ Private Sub LoadIniFile()
         End If
     End If
     
+    'パス履歴復帰
+    Dim pl As Variant
+    Dim i As Long
+    
+    strSavePATHLIST = GetINIValue("PATHLIST", "Save", mydoc_path & "\ExcelFileOpener.ini")
+    
+    If Not strSavePATHLIST = "ERROR" Then
+    
+        pl = Split(strSavePATHLIST, ";")
+        For i = 0 To UBound(pl)
+            If Not pathDic.Exists(pl(i)) Then
+                pathDic.Add KEY:=pl(i), Item:=1
+            End If
+        Next i
+    
+    End If
     
 End Sub
 
@@ -151,6 +177,8 @@ Private Sub SaveIniFile()
     Dim wScriptHost As Object
     Dim mydoc_path As String
     Dim ret As Boolean
+    Dim i As Long
+    Dim pathlist As String
 
     Set wScriptHost = CreateObject("WScript.Shell")
     mydoc_path = wScriptHost.SpecialFolders("MyDocuments")
@@ -161,6 +189,12 @@ Private Sub SaveIniFile()
     Else
             ret = SetINIValue("False", "ENABLE", "Save", mydoc_path & "\ExcelFileOpener.ini")
     End If
+    
+    pathlist = ""
+    For i = 0 To UBound(pathDic.Keys)
+        pathlist = pathlist & ";" & pathDic.Keys(i)
+    Next i
+    ret = SetINIValue(pathlist, "PATHLIST", "Save", mydoc_path & "\ExcelFileOpener.ini")
 
 End Sub
 
@@ -329,6 +363,7 @@ Private Sub OpenFile0(mno As Integer)
     If escFlag = True Then
         ' 入力パスを保存
         Call SaveIniFile
+        Call ExitGlobal
         Exit Sub
     End If
     
@@ -337,7 +372,7 @@ Private Sub OpenFile0(mno As Integer)
     
     ' 入力パスを保存
     Call SaveIniFile
-
+    Call ExitGlobal
     
 End Sub
 

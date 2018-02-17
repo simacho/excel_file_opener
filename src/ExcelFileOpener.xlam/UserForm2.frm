@@ -56,6 +56,10 @@ Private Sub CheckBoxRestore_Click()
     
 End Sub
 
+Private Sub ComboBoxDirbox_Change()
+
+End Sub
+
 Private Sub LabelCounter_Click()
 
 End Sub
@@ -86,7 +90,7 @@ Private Sub OptionButton1_Click()
     TextBox2.Text = initialString
     selectedName = ""
     
-    TextBoxDirbox.ForeColor = &H80000012        ' パスは濃く
+    ComboBoxDirbox.ForeColor = &H80000012        ' パスは濃く
     Call GetFilesByMode
     
     Call TextBox2_Change    ' 内容更新
@@ -117,7 +121,7 @@ Private Sub OptionButton2_Click()
     
     TextBox2.Text = initialString
     selectedName = ""
-    TextBoxDirbox.ForeColor = &H80000012        ' パスは濃く
+    ComboBoxDirbox.ForeColor = &H80000012        ' パスは濃く
         
     Call GetFilesByMode
     Call TextBox2_Change    ' 内容更新
@@ -128,7 +132,7 @@ Private Sub OptionButton3_Click()
     
     TextBox2.Text = ""
     selectedName = ""
-    TextBoxDirbox.ForeColor = &H80000010        ' パスは薄く
+    ComboBoxDirbox.ForeColor = &H80000010        ' パスは薄く
     
     Call GetFilesByMode
     Call TextBox2_Change    ' 内容更新
@@ -139,7 +143,7 @@ Private Sub OptionButton4_Click()
     
     TextBox2.Text = ""
     selectedName = ""
-    TextBoxDirbox.ForeColor = &H80000010        ' パスは薄く
+    ComboBoxDirbox.ForeColor = &H80000010        ' パスは薄く
     
     Call GetFilesByMode
     Call TextBox2_Change    ' 内容更新
@@ -173,7 +177,7 @@ Public Sub TextBox2_Change()
     ' リストのクリア
     UserForm2.ListView1.ListItems.Clear
     
-    TextBoxDirbox.Text = crntPath
+    ComboBoxDirbox.Text = crntPath
 
     matchstr = "*" & UserForm2.TextBox2.Value & "*"
                     
@@ -243,16 +247,20 @@ End Sub
 '
 ' ダブルクリックでフォルダ選択
 '
-Private Sub TextBoxDirbox_DblClick(ByVal Cancel As MSForms.ReturnBoolean)
+Private Sub ComboBoxDirbox_DblClick(ByVal Cancel As MSForms.ReturnBoolean)
     With Application.FileDialog(msoFileDialogFolderPicker)
         If .Show = True Then
-            TextBoxDirbox.Text = .SelectedItems(1)
+            ComboBoxDirbox.Text = .SelectedItems(1)
         End If
     
-            crntPath = TextBoxDirbox.Text       ' テキストボックスでカレントパスを上書き
+            crntPath = ComboBoxDirbox.Text       ' テキストボックスでカレントパスを上書き
             selectedName = ""
             waitFlag = False
     
+            ' コンボボックスに追加
+            If Not pathDic.Exists(ComboBoxDirbox.Text) Then
+                pathDic.Add KEY:=ComboBoxDirbox.Text, Item:=1
+            End If
     
     End With
 End Sub
@@ -260,12 +268,17 @@ End Sub
 '
 ' パスの変更確認
 '
-Private Sub TextBoxDirbox_KeyDown(ByVal KeyCode As MSForms.ReturnInteger, ByVal Shift As Integer)
+Private Sub ComboBoxDirbox_KeyDown(ByVal KeyCode As MSForms.ReturnInteger, ByVal Shift As Integer)
 
     If KeyCode = vbKeyReturn Then
-        crntPath = TextBoxDirbox.Text       ' テキストボックスでカレントパスを上書き
+        crntPath = ComboBoxDirbox.Text       ' テキストボックスでカレントパスを上書き
         selectedName = ""
         waitFlag = False
+    
+            ' コンボボックスに追加
+            If Not pathDic.Exists(ComboBoxDirbox.Text) Then
+                pathDic.Add KEY:=ComboBoxDirbox.Text, Item:=1
+            End If
     End If
     
     If KeyCode = vbKeyEscape Then
@@ -308,6 +321,8 @@ Public Sub FormSetting()
 End Sub
 
 Private Sub UserForm_Initialize()
+    Dim i As Long
+    
  With ListView1
     .AllowColumnReorder = True
     .BorderStyle = ccFixedSingle
@@ -328,6 +343,11 @@ Private Sub UserForm_Initialize()
  
  ' 保存フラグ変更
  Me.CheckBoxRestore.Value = restoreFlag
+ 
+ ' パス履歴保存
+ For i = 0 To pathDic.Count - 1
+    Me.ComboBoxDirbox.AddItem (pathDic.Keys(i))
+ Next i
 
  ' サイズ変更
  Call UserForm_Resize
@@ -355,7 +375,7 @@ Private Sub UserForm_Resize()
     Label6.Left = xx(0)
     
     ' x1 左合わせ
-    TextBoxDirbox.Left = xx(1)
+    ComboBoxDirbox.Left = xx(1)
     TextBox2.Left = xx(1)
     ListView1.Left = xx(1)
         
@@ -370,7 +390,7 @@ Private Sub UserForm_Resize()
         CheckBoxRestore.Width = 50
         CheckBoxRestore.Left = Me.InsideWidth - xx(2) - CheckBoxRestore.Width
         
-        TextBoxDirbox.Width = Me.InsideWidth - xx(1) - xx(2) - CheckBoxRestore.Width
+        ComboBoxDirbox.Width = Me.InsideWidth - xx(1) - xx(2) - CheckBoxRestore.Width
         TextBox2.Width = Me.InsideWidth - xx(1) - xx(2)
         ListView1.Width = Me.InsideWidth - xx(1) - xx(2)
         ListView1.ColumnHeaders.Item(1).Width = ListView1.Width / 2
@@ -383,7 +403,7 @@ Private Sub UserForm_Resize()
         
     ' y0 上合わせ
     Label4.Top = yy(0)
-    TextBoxDirbox.Top = yy(0)
+    ComboBoxDirbox.Top = yy(0)
     CheckBoxRestore.Top = yy(0)
     ' y1 上合わせ
     Label2.Top = yy(1)
