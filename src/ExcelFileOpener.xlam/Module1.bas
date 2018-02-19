@@ -5,6 +5,7 @@ Option Explicit
 ' ------------------------------------------------------------
 Public activePath As String         ' アクティブパス管理用
 Public crntPath As String           ' 現在のパス管理用
+Public prevPath As String           ' 前回のパス管理用
 Public initialString As String      ' 最初の文字列
 Public selectedName As String       ' 選択項目名受け渡し用
 Public nodeCount As Long            ' 項目数
@@ -13,11 +14,11 @@ Public filesBuffer() As String      ' リスト表示バッファ
 Public maxCount As Long             ' 再帰時のファイル上限
 Public amountFile As Long
 Public pathDic As New Dictionary         ' パス保存用
-
+    
 ' フラグ系
 Public waitFlag As Boolean
 Public escFlag As Boolean
-Public restoreFlag As Boolean
+Public recursiveFlag As Boolean
 
 ' INIファイル用
 Public iniWidth As Long
@@ -28,7 +29,7 @@ Public iniHeight As Long
 ' ------------------------------------------------------------
 Enum mode
     ACTIVE_PATH = 1
-    RECURSIVE_PATH = 2
+    PREVIOUS_PATH = 2
     RECENT_FILE = 3
     SWITCH_BOOK = 4
 End Enum
@@ -53,6 +54,7 @@ Private Sub InitGlobal()
         activePath = ActiveWorkbook.path
     End If
     crntPath = activePath
+    prevPath = ""
     initialString = ""
     selectedName = ""
     nodeCount = 0
@@ -68,7 +70,7 @@ Private Sub InitGlobal()
     ' フラグ関連クリア
     escFlag = False
     waitFlag = False
-    restoreFlag = False
+    recursiveFlag = False
     
     ' 初期値
     iniWidth = 500
@@ -99,7 +101,7 @@ Private Sub LoadIniFile()
     Dim strHeight As String
     Dim strMaxFile As String
     Dim strInitialString As String
-    Dim strSaveENABLE As String
+    Dim strSaveRECURSIVE As String
     Dim strSavePATH As String
     Dim strSavePATHLIST As String
 
@@ -129,16 +131,17 @@ Private Sub LoadIniFile()
     End If
     
     'セーブ関連復帰
-    strSaveENABLE = GetINIValue("ENABLE", "Save", mydoc_path & "\ExcelFileOpener.ini")
+    strSaveRECURSIVE = GetINIValue("RECURSIVE", "Save", mydoc_path & "\ExcelFileOpener.ini")
     strSavePATH = GetINIValue("PATH", "Save", mydoc_path & "\ExcelFileOpener.ini")
     
-    If Not strSaveENABLE = "ERROR" Then
-        If UCase(strSaveENABLE) = "TRUE" Then
-            restoreFlag = True
-            crntPath = strSavePATH
-        Else
-            restoreFlag = False
-        End If
+    '前回のカレントパスに復帰
+    If Not strSaveRECURSIVE = "ERROR" Then
+        prevPath = strSavePATH
+    End If
+        
+    '再帰フラグ復帰
+    If UCase(strSaveRECURSIVE) = "TRUE" Then
+        recursiveFlag = True
     End If
     
     'パス履歴復帰
@@ -183,13 +186,17 @@ Private Sub SaveIniFile()
     Set wScriptHost = CreateObject("WScript.Shell")
     mydoc_path = wScriptHost.SpecialFolders("MyDocuments")
 
-    If restoreFlag = True Then
-            ret = SetINIValue("True", "ENABLE", "Save", mydoc_path & "\ExcelFileOpener.ini")
-            ret = SetINIValue(crntPath, "PATH", "Save", mydoc_path & "\ExcelFileOpener.ini")
+    ' 前回パス保存
+    ret = SetINIValue(crntPath, "PATH", "Save", mydoc_path & "\ExcelFileOpener.ini")
+
+    ' 再帰フラグ保存
+    If recursiveFlag = True Then
+        ret = SetINIValue("True", "RECURSIVE", "Save", mydoc_path & "\ExcelFileOpener.ini")
     Else
-            ret = SetINIValue("False", "ENABLE", "Save", mydoc_path & "\ExcelFileOpener.ini")
+        ret = SetINIValue("False", "RECURSIVE", "Save", mydoc_path & "\ExcelFileOpener.ini")
     End If
     
+    ' 履歴パス保存
     pathlist = ""
     For i = 0 To UBound(pathDic.Keys)
         pathlist = pathlist & ";" & pathDic.Keys(i)
@@ -225,7 +232,7 @@ Private Function SelectFile() As String
         Select Case noMode
         Case mode.ACTIVE_PATH
             UserForm2.TextBox2.Text = initialString
-        Case mode.RECURSIVE_PATH
+        Case mode.PREVIOUS_PATH
             UserForm2.TextBox2.Text = initialString
         Case mode.RECENT_FILE
             UserForm2.TextBox2.Text = ""
@@ -294,7 +301,7 @@ Private Sub OpenFileSub(tgtfile As String)
     Select Case noMode
     Case mode.ACTIVE_PATH
         act_open = True
-    Case mode.RECURSIVE_PATH
+    Case mode.PREVIOUS_PATH
         act_open = True
     Case mode.RECENT_FILE
         act_open = True
@@ -342,9 +349,11 @@ Private Sub OpenFile0(mno As Integer)
     'モード別処理
     Select Case noMode
     Case mode.ACTIVE_PATH
+        crntPath = activePath
         UserForm2.OptionButton1 = True
     
-    Case mode.RECURSIVE_PATH
+    Case mode.PREVIOUS_PATH
+        crntPath = prevPath
         UserForm2.OptionButton2 = True
     
     Case mode.RECENT_FILE
@@ -389,10 +398,10 @@ Public Sub OpenFile_ACTIVE_PATH()
 End Sub
 
 '
-' 公開関数（現在のフォルダから再帰的に開く）
+' 公開関数（前回のフォルダを開く）
 '
-Public Sub OpenFile_RECURSIVE_PATH()
-    Call OpenFile0(mode.RECURSIVE_PATH)
+Public Sub OpenFile_PREVIOUS_PATH()
+    Call OpenFile0(mode.PREVIOUS_PATH)
 End Sub
 
 '

@@ -383,9 +383,9 @@ Sub GetFilesByMode()
     'モード別に開く処理を変更する
     Select Case noMode
     Case mode.ACTIVE_PATH
-        filesBuffer = GetFilesRecursive(crntPath, filesBuffer, 0, False)
-    Case mode.RECURSIVE_PATH
-        filesBuffer = GetFilesRecursive(crntPath, filesBuffer, 0, True)
+        filesBuffer = GetFilesRecursive(crntPath, filesBuffer, 0, recursiveFlag)
+    Case mode.PREVIOUS_PATH
+        filesBuffer = GetFilesRecursive(crntPath, filesBuffer, 0, recursiveFlag)
     Case mode.RECENT_FILE
         filesBuffer = GetRecentlyFiles(filesBuffer)
     Case mode.SWITCH_BOOK    ' SWITCH_BOOK

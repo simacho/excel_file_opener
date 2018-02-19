@@ -33,7 +33,7 @@ Private Sub UnitKeyDownReturn()
         Select Case noMode
         Case mode.ACTIVE_PATH
             selectedName = Combine(crntPath, ListView1.SelectedItem.SubItems(1), ListView1.SelectedItem.Text)
-        Case mode.RECURSIVE_PATH
+        Case mode.PREVIOUS_PATH
             selectedName = Combine(crntPath, ListView1.SelectedItem.SubItems(1), ListView1.SelectedItem.Text)
         Case mode.RECENT_FILE
             selectedName = Combine(ListView1.SelectedItem.SubItems(1), ListView1.SelectedItem.Text)
@@ -46,11 +46,15 @@ Private Sub UnitKeyDownReturn()
 End Sub
 
 
-Private Sub CheckBoxRestore_Click()
+Private Sub CheckBoxRecursive_Click()
     
     If Not (UserForm2.ActiveControl Is Nothing) Then
         If UserForm2.ActiveControl.Name = Me.ActiveControl.Name Then
-            restoreFlag = Not restoreFlag
+            recursiveFlag = Not recursiveFlag
+        
+            Call GetFilesByMode
+            Call TextBox2_Change    ' 内容更新
+
         End If
     End If
     
@@ -88,6 +92,7 @@ Private Sub OptionButton1_Click()
     noMode = mode.ACTIVE_PATH
     
     TextBox2.Text = initialString
+    crntPath = activePath
     selectedName = ""
     
     ComboBoxDirbox.ForeColor = &H80000012        ' パスは濃く
@@ -117,9 +122,10 @@ End Sub
 
 Private Sub OptionButton2_Click()
     
-    noMode = mode.RECURSIVE_PATH
+    noMode = mode.PREVIOUS_PATH
     
     TextBox2.Text = initialString
+    crntPath = prevPath
     selectedName = ""
     ComboBoxDirbox.ForeColor = &H80000012        ' パスは濃く
         
@@ -342,7 +348,7 @@ Private Sub UserForm_Initialize()
  Me.Height = iniHeight
  
  ' 保存フラグ変更
- Me.CheckBoxRestore.Value = restoreFlag
+ Me.CheckBoxRecursive.Value = recursiveFlag
  
  ' パス履歴保存
  For i = 0 To pathDic.Count - 1
@@ -387,10 +393,10 @@ Private Sub UserForm_Resize()
     ' x2 右合わせ
     If Me.InsideWidth > 200 Then
            
-        CheckBoxRestore.Width = 50
-        CheckBoxRestore.Left = Me.InsideWidth - xx(2) - CheckBoxRestore.Width
+        CheckBoxRecursive.Width = 60
+        CheckBoxRecursive.Left = Me.InsideWidth - xx(2) - CheckBoxRecursive.Width
         
-        ComboBoxDirbox.Width = Me.InsideWidth - xx(1) - xx(2) - CheckBoxRestore.Width
+        ComboBoxDirbox.Width = Me.InsideWidth - xx(1) - xx(2) - CheckBoxRecursive.Width
         TextBox2.Width = Me.InsideWidth - xx(1) - xx(2)
         ListView1.Width = Me.InsideWidth - xx(1) - xx(2)
         ListView1.ColumnHeaders.Item(1).Width = ListView1.Width / 2
@@ -404,7 +410,7 @@ Private Sub UserForm_Resize()
     ' y0 上合わせ
     Label4.Top = yy(0)
     ComboBoxDirbox.Top = yy(0)
-    CheckBoxRestore.Top = yy(0)
+    CheckBoxRecursive.Top = yy(0)
     ' y1 上合わせ
     Label2.Top = yy(1)
     TextBox2.Top = yy(1)
