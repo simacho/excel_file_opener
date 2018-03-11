@@ -48,7 +48,6 @@ Private Sub InitGlobal()
     Dim wScriptHost As Object
     Set wScriptHost = CreateObject("WScript.Shell")
     
-    
     activePath = ""
     If Not ActiveWorkbook Is Nothing Then
         activePath = ActiveWorkbook.path
@@ -139,10 +138,10 @@ Private Sub LoadIniFile()
         prevPath = strSavePATH
     End If
         
-    '再帰フラグ復帰
-    If UCase(strSaveRECURSIVE) = "TRUE" Then
-        recursiveFlag = True
-    End If
+    '再帰フラグ復帰 -> 重いので初回起動はオミット
+    'If UCase(strSaveRECURSIVE) = "TRUE" Then
+    '    recursiveFlag = True
+    'End If
     
     'パス履歴復帰
     Dim pl As Variant
@@ -247,6 +246,7 @@ Private Function SelectFile() As String
         If form = False Then
             form = True
             UserForm2.Show (vbModeless)
+            
         End If
 
         ' フォーム表示後更新
@@ -311,7 +311,8 @@ Private Sub OpenFileSub(tgtfile As String)
     
     If act_open = True Then
         On Error Resume Next  'エラーがあっても続行する
-        Workbooks.Open tgtfile, ReadOnly:=False
+        Workbooks.Open tgtfile, ReadOnly:=False, Notify:=False
+        
         If Err.Number <> 0 Then
             MsgBox Error(Err.Number)
             Exit Sub
@@ -358,7 +359,7 @@ Private Sub OpenFile0(mno As Integer)
     
     Case mode.RECENT_FILE
         UserForm2.OptionButton3 = True
-    
+        
     Case mode.SWITCH_BOOK
         UserForm2.OptionButton4 = True
         

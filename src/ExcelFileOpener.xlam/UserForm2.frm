@@ -261,7 +261,6 @@ Private Sub ComboBoxDirbox_DblClick(ByVal Cancel As MSForms.ReturnBoolean)
     
             crntPath = ComboBoxDirbox.Text       ' テキストボックスでカレントパスを上書き
             selectedName = ""
-            waitFlag = False
     
             ' コンボボックスに追加
             If Not pathDic.Exists(ComboBoxDirbox.Text) Then
@@ -278,6 +277,7 @@ Private Sub ComboBoxDirbox_KeyDown(ByVal KeyCode As MSForms.ReturnInteger, ByVal
 
     If KeyCode = vbKeyReturn Then
         crntPath = ComboBoxDirbox.Text       ' テキストボックスでカレントパスを上書き
+        activePath = crntPath                ' ActivePath を上書きしておく
         selectedName = ""
         waitFlag = False
     
@@ -285,6 +285,14 @@ Private Sub ComboBoxDirbox_KeyDown(ByVal KeyCode As MSForms.ReturnInteger, ByVal
             If Not pathDic.Exists(ComboBoxDirbox.Text) Then
                 pathDic.Add KEY:=ComboBoxDirbox.Text, Item:=1
             End If
+    
+        ' パス変更がある場合は更新
+        noMode = mode.ACTIVE_PATH
+        OptionButton1.Value = True
+        ComboBoxDirbox.ForeColor = &H80000012        ' パスは濃く
+        Call GetFilesByMode
+        Call TextBox2_Change    ' 内容更新
+            
     End If
     
     If KeyCode = vbKeyEscape Then
